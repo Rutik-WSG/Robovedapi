@@ -7,6 +7,7 @@ from flask_mail import Mail,Message
 import os
 #from __future__ import print_function
 import time
+import pymongo
 import razorpay
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
@@ -18,9 +19,9 @@ app = Flask(__name__)
 razorpay_client = razorpay.Client(auth=("rzp_test_hAYTO5a3WVZkPe", "RhY3gSMz6U1ejJXdliestlZu"))
 
 configuration = sib_api_v3_sdk.Configuration()
-configuration.api_key['api-key'] ='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 '                             
+configuration.api_key['api-key'] ='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 '                             
 
-
+myclient = pymongo.MongoClient("mongodb+srv://rutik:*****@atlascluster.59beml7.mongodb.net/test")
 app.config['MONGODB_SETTINGS'] = {
     'db': 'roboveda',
     'host': 'localhost',
@@ -50,19 +51,20 @@ class emp(db.Document):
     email = db.StringField()
    
     ticket = db.StringField(max_length=20, choices=code, required = True)
+    amount=db.IntField()
     def to_json(self):
         return {"name": self.name,
                 "mobile_no":self.mobile,
                 "email": self.email,
                 "ticket ": self.ticket,
-                
+                "amount":self.amount
                 
                 }
         
-class amount(db.Document):
+class amount1(db.Document):
     amount=db.IntField()
     def to_json(self):
-        return {" amount": self.amount,}
+        return {"amount":self.amount}
 
 
     
@@ -72,10 +74,9 @@ class amount(db.Document):
 
 
 api_instance = sib_api_v3_sdk.ContactsApi(sib_api_v3_sdk.ApiClient(configuration))
-repeat_contact_api_instance = sib_api_v3_sdk.ListsApi(sib_api_v3_sdk.ApiClient(configuration)) #lists-api
-transaction_mail_api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration)) #transactional-emails-api 
+repeat_contact_api_instance = sib_api_v3_sdk.ListsApi(sib_api_v3_sdk.ApiClient(configuration)) #lists-apitransaction_mail_api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration)) #transactional-emails-api 
 
-create_contact = sib_api_v3_sdk.CreateContact(email= "sdk212006@gmail.com",  ) # CreateContact | Values to create a contact
+create_contact = sib_api_v3_sdk.CreateContact(email= "rds212006@gmail.com",  ) # CreateContact | Values to create a contact
 
 try:
     # Create a contact
@@ -94,11 +95,35 @@ def create_record():
                mobile=record['mobile_no'],
                email=record['email'],
                ticket=record['ticket'],
-             
-             )
-    user.save()
+               amount=record['amount'],
+               )
     
-    return jsonify(user.to_json(),{"message":"Data Succefully Add"})
+   
+    
+    # email=db.emp.find({email : "email" }),
+    # mobile=db.emp.find({mobile:"mobile"})
+    # if email  or mobile:
+    #     return jsonify({'status':204,'message':'Mobile number or EmailID already registered', 'error':True})
+
+    
+    try:
+         record = json.loads(request.data)
+         email=record['email']
+         amount=record['amount']
+        
+         create_contact = sib_api_v3_sdk.CreateContact(email=email  )
+         api_response = api_instance.create_contact(create_contact)
+         currency="INR"
+         client=razorpay.Client(auth=("rzp_test_hAYTO5a3WVZkPe", "RhY3gSMz6U1ejJXdliestlZu"))           #auth=(razorpay_key,rezorpay_secret ))
+         payment=client.order.create({'amount':amount,'currency':currency,'payment_capture':1})
+
+    except ApiException as e:
+         print("Exception when calling ContactsApi->create_contact: %s\n" % e)
+
+    user.save()
+ 
+    return jsonify(user.to_json(),{"message":"Data Succefully Add",'status':204,'error':True})
+  
 
 
 
@@ -111,10 +136,10 @@ def app_charge():
         name=request.form.get('name')
         mobile=request.form.get('mobile')
         email = request.form.get('email')
-        amount=request.form.get('amount')
         notes={'name':name,"mobile":mobile,"email":email}
        # notes.save()
-        amount = 200*1000
+        #amount =amount1(amount=request.form.get('amount'))
+        amount =600*1000
         currency="INR"
         client=razorpay.Client(auth=("rzp_test_hAYTO5a3WVZkPe", "RhY3gSMz6U1ejJXdliestlZu"))           #auth=(razorpay_key,rezorpay_secret ))
         payment=client.order.create({'amount':amount,'currency':currency,'payment_capture':1,'notes':notes})
