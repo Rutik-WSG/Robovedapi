@@ -19,7 +19,7 @@ app = Flask(__name__)
 razorpay_client = razorpay.Client(auth=("rzp_test_hAYTO5a3WVZkPe", "RhY3gSMz6U1ejJXdliestlZu"))
 
 configuration = sib_api_v3_sdk.Configuration()
-configuration.api_key['api-key'] ='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 '                             
+configuration.api_key['api-key'] ='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'                             
 
 myclient = pymongo.MongoClient("mongodb+srv://rutik:*****@atlascluster.59beml7.mongodb.net/test")
 app.config['MONGODB_SETTINGS'] = {
@@ -27,6 +27,8 @@ app.config['MONGODB_SETTINGS'] = {
     'host': 'localhost',
     'port': 27017
 }
+
+app.config['MONGODB_SETTINGS'] = {'db': 'roboveda','host': 'mongodb+srv://root:root@roboveda.feslyvu.mongodb.net/test','port': 27017}
 db = MongoEngine()
 db.init_app(app)
 
@@ -34,14 +36,12 @@ db.init_app(app)
 #=========================================================================================================================================
 
 
-
-
-code = (('Basic', 'Basic entry Ticket @INR 399/-'),
-            ('Premium', 'Premium entry Ticket @INR 699/-'),
-            ('Master', 'Master entry Ticket @INR 799/-'),
-            ('Pardarshan', 'Pardarshan entry Ticket @INR 200/-'),
-            ('IoT', 'IoT Workshop Ticket @INR 800/-'),
-            ('Drone', 'Drone Workshop Ticket @INR 800/-'),)
+code = (('Basic','Basic'),
+            ('Premium','Premium'),
+            ('Master','Master'),
+            ('Pradarshan','Pradarshan'),
+            ('IoT','IoT'),
+            ('Drone','Drone'),)
   
 
 
@@ -57,7 +57,7 @@ class emp(db.Document):
                 "mobile_no":self.mobile,
                 "email": self.email,
                 "ticket ": self.ticket,
-                "amount":self.amount
+                #"amount":self.amount
                 
                 }
         
@@ -76,15 +76,15 @@ class amount1(db.Document):
 api_instance = sib_api_v3_sdk.ContactsApi(sib_api_v3_sdk.ApiClient(configuration))
 repeat_contact_api_instance = sib_api_v3_sdk.ListsApi(sib_api_v3_sdk.ApiClient(configuration)) #lists-apitransaction_mail_api_instance = sib_api_v3_sdk.TransactionalEmailsApi(sib_api_v3_sdk.ApiClient(configuration)) #transactional-emails-api 
 
-create_contact = sib_api_v3_sdk.CreateContact(email= "rds212006@gmail.com",  ) # CreateContact | Values to create a contact
+# create_contact = sib_api_v3_sdk.CreateContact(email= "rds212006@gmail.com",  ) # CreateContact | Values to create a contact
 
-try:
-    # Create a contact
-    api_response = api_instance.create_contact(create_contact)
-    #pprint(api_response)
-except ApiException as e:
-    #print(e)
-    print("Exception when calling ContactsApi->create_contact: %s\n" % e)
+# try:
+#     # Create a contact
+#     api_response = api_instance.create_contact(create_contact)
+#     #pprint(api_response)
+# except ApiException as e:
+#     #print(e)
+#     print("Exception when calling ContactsApi->create_contact: %s\n" % e)
 
 #---------------------------------------------------------------------------------------------------------------------------------------
 
@@ -95,7 +95,7 @@ def create_record():
                mobile=record['mobile_no'],
                email=record['email'],
                ticket=record['ticket'],
-               amount=record['amount'],
+               #amount=record['amount'],
                )
     
    
@@ -109,41 +109,61 @@ def create_record():
     try:
          record = json.loads(request.data)
          email=record['email']
-         amount=record['amount']
-        
+         #amount=record['amount']
+         ticket=record['ticket']
+         if ticket=='Basic':
+             amount=399*100
+         elif ticket=='Premium':
+             amount=699*100
+         elif ticket=='Master':
+             amount=799*100
+         elif ticket=='Pradarshan':
+             amount=200*100
+         elif ticket=='IoT':
+             amount=800*100
+         elif ticket=='Drone':
+             amount=800*100
+         else:
+             response={"enter valid ticket"}
+             return jsonify(response)
          create_contact = sib_api_v3_sdk.CreateContact(email=email  )
          api_response = api_instance.create_contact(create_contact)
          currency="INR"
-         client=razorpay.Client(auth=("rzp_test_hAYTO5a3WVZkPe", "RhY3gSMz6U1ejJXdliestlZu"))           #auth=(razorpay_key,rezorpay_secret ))
+         client=razorpay.Client(auth=("rzp_test_hAYTO5a3WVZkPe", "RhY3gSMz6U1ejJXdliestlZu")) 
+         #auth=(razorpay_key,rezorpay_secret ))
          payment=client.order.create({'amount':amount,'currency':currency,'payment_capture':1})
 
-    except ApiException as e:
-         print("Exception when calling ContactsApi->create_contact: %s\n" % e)
+    except TypeError:
+         return jsonify({"message":"Ticket is invalid",'status':400,'error':True})
+   
+        # print("Exception when calling ContactsApi->create_contact: %s\n" % e)
+       
+             
 
     user.save()
  
-    return jsonify(user.to_json(),{"message":"Data Succefully Add",'status':204,'error':True})
-  
+    return jsonify({'OrderId':payment['id'],"message":"Data Succefully Add",'status':200,'error':False})
+   
 
 
 
 
-@app.route('/charge', methods=['POST'])
-def app_charge():
-    if request.method=="POST":
-        #data = request.get_json()
-        global payment,name                 #,razorpay_key,rezorpay_secret 
-        name=request.form.get('name')
-        mobile=request.form.get('mobile')
-        email = request.form.get('email')
-        notes={'name':name,"mobile":mobile,"email":email}
-       # notes.save()
-        #amount =amount1(amount=request.form.get('amount'))
-        amount =600*1000
-        currency="INR"
-        client=razorpay.Client(auth=("rzp_test_hAYTO5a3WVZkPe", "RhY3gSMz6U1ejJXdliestlZu"))           #auth=(razorpay_key,rezorpay_secret ))
-        payment=client.order.create({'amount':amount,'currency':currency,'payment_capture':1,'notes':notes})
-        return jsonify(payment=payment )#,razorpay_key=razorpay_key)    
+# @app.route('/charge', methods=['POST'])
+# def app_charge():
+#     if request.method=="POST":
+#         #data = request.get_json()
+#         global payment,name                 #,razorpay_key,rezorpay_secret 
+#         name=request.form.get('name')
+#         mobile=request.form.get('mobile')
+#         email = request.form.get('email')
+#         notes={'name':name,"mobile":mobile,"email":email}
+#        # notes.save()
+#         #amount =amount1(amount=request.form.get('amount'))
+#         amount =600*1000
+#         currency="INR"
+#         client=razorpay.Client(auth=("rzp_test_hAYTO5a3WVZkPe", "RhY3gSMz6U1ejJXdliestlZu"))           #auth=(razorpay_key,rezorpay_secret ))
+#         payment=client.order.create({'amount':amount,'currency':currency,'payment_capture':1,'notes':notes})
+#         return jsonify(payment=payment )#,razorpay_key=razorpay_key)    
 
 if __name__ == "__main__":
     app.run(debug=True)
